@@ -68,6 +68,26 @@ export default abstract class Level extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
        
     }
+    private addEntityFromMapObject(object: any): void {
+        const instance = EntityManager.createFromObject(this, object as any);
+
+        if (!instance) {
+            const objectName = object?.type ?? object?.name ?? 'unknown';
+            console.debug(`didnt find ${objectName} in Entity`);
+            console.debug(EntityManager.list);
+            return;
+        }
+
+        if (instance instanceof Phaser.GameObjects.Zone) {
+            this.zones.add(instance);
+            return;
+        }
+
+        if (instance instanceof Phaser.GameObjects.GameObject) {
+            this.interactables.add(instance);
+        }
+    }
+
     create(){
         this.interactables = this.add.group()
         this.zones = this.add.group()
@@ -77,9 +97,6 @@ export default abstract class Level extends Phaser.Scene {
             const key = ts.name
             this.map.addTilesetImage(ts.name)
         })
-       
-
-
         
         this.map.images.forEach(( {x, y, name, repeatx, parallaxx }) => {
             const image = this.add.tileSprite(x, y, 0,0, name)
@@ -92,16 +109,7 @@ export default abstract class Level extends Phaser.Scene {
         level.layers.forEach((layer)=>{
             const {name, type } = layer
             if(type === 'objectgroup'){
-                layer.objects.forEach(object => {
-                    const classType = EntityManager.get(object.type)
-                    if (!classType){
-                        console.debug(`didnt find ${object.type} in Entity`);
-                        console.debug(EntityManager.list)
-                        return;
-                    }
-                     this.map.createFromObjects(name, { type: object.type, classType, })
-                })
-               
+                layer.objects.forEach((object) => this.addEntityFromMapObject(object))
             }
             if(type === 'tilelayer'){
                 this.collisionLayer!.add(this.map.createLayer(name, this.map.tilesets.map(l=>l.name))!.setCollisionByProperty({ isSolid: true}))
@@ -110,7 +118,6 @@ export default abstract class Level extends Phaser.Scene {
         this.map.setCollisionFromCollisionGroup(true, false, 'Collision')
         this.cameras.main.setBounds(0,0,this.game.scale.width * 3,this.game.scale.height);
         console.log(this.map);
-        
     }
 
     update(time: number, delta: number): void {

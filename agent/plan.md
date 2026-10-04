@@ -56,6 +56,8 @@ The project should be developed in layers:
 
 ## Milestone 1: stabilize the engine foundation
 
+Status: Completed
+
 ### Objective
 
 Make the runtime architecture consistent and reliable before adding more gameplay features.
@@ -83,6 +85,8 @@ Make the runtime architecture consistent and reliable before adding more gamepla
 - The engine has a single consistent scene contract.
 
 ## Milestone 2: formalize entity model and registry behavior
+
+Status: Completed
 
 ### Objective
 
@@ -286,8 +290,8 @@ Translate the functional engine into a full plugin/game-engine model with a main
 
 Use the milestones above as checkpoints. A practical progress pattern is:
 
-- [ ] Milestone 1: stabilize engine foundation
-- [ ] Milestone 2: formalize entity model
+- [x] Milestone 1: stabilize engine foundation
+- [x] Milestone 2: formalize entity model
 - [ ] Milestone 3: build trigger system
 - [ ] Milestone 4: data-driven scene and UI config
 - [ ] Milestone 5: reusable object library
