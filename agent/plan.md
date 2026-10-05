@@ -172,7 +172,7 @@ Move scene, UI, font, and transition configuration beyond hardcoded scene classe
 
 ## Milestone 4.5: define the map-driven UI registry contract
 
-Status: Planned
+Status: Completed
 
 ### Objective
 
@@ -349,8 +349,7 @@ Use the milestones above as checkpoints. A practical progress pattern is:
 - [x] Milestone 2: formalize entity model
 - [x] Milestone 3: build trigger system
 - [x] Milestone 4: data-driven scene and UI config
-- [ ] Milestone 4.5: map-driven UI registry contract
-- [ ] Milestone 4.5: map-driven UI registry contract
+- [x] Milestone 4.5: map-driven UI registry contract
 - [ ] Milestone 5: reusable object library
 - [ ] Milestone 6: cleanup stale demo code
 - [ ] Milestone 7: testing and build validation

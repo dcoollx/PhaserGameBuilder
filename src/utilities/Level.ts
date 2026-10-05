@@ -10,13 +10,10 @@ export interface SceneConfig {
     gravity?: { x?: number; y?: number };
     cameraZoom?: number;
     backgroundColor?: string;
-    ui?: Array<{
-        key: string;
-        text: string;
-        x?: number;
-        y?: number;
-        style?: Record<string, unknown>;
-    }>;
+    ui?: string;
+    uiPosition?: { x?: number; y?: number };
+    uiData?: unknown;
+    sceneClass?: string;
     transition?: {
         nextScene?: string;
         duration?: number;
@@ -56,23 +53,16 @@ export default abstract class Level extends Phaser.Scene {
         this.triggers.set(trigger.name || `trigger-${trigger.id}`, trigger);
         return trigger;
     }
-    private parseUiConfig(value: unknown): SceneConfig['ui'] {
-        if (Array.isArray(value)) {
-            return value as SceneConfig['ui'];
-        }
-
+    private parseObjectValue(value: unknown): unknown {
         if (typeof value === 'string') {
             try {
-                const parsed = JSON.parse(value);
-                if (Array.isArray(parsed)) {
-                    return parsed as SceneConfig['ui'];
-                }
+                return JSON.parse(value);
             } catch (_error) {
-                return undefined;
+                return value;
             }
         }
 
-        return undefined;
+        return value;
     }
     private parseSceneConfig(level: TiledMap): SceneConfig {
         const rootProperties = ((level as any).properties ?? []) as Array<{ name: string; value: unknown }>;
@@ -92,11 +82,7 @@ export default abstract class Level extends Phaser.Scene {
 
         let gravity: unknown = gravityValue;
         if (typeof gravityValue === 'string') {
-            try {
-                gravity = JSON.parse(gravityValue);
-            } catch (_error) {
-                gravity = undefined;
-            }
+            gravity = this.parseObjectValue(gravityValue);
         }
 
         const sceneConfig: SceneConfig = {};
@@ -117,17 +103,54 @@ export default abstract class Level extends Phaser.Scene {
             sceneConfig.backgroundColor = String(propertyMap.backgroundColor);
         }
 
-        const uiValue = this.parseUiConfig(propertyMap.ui);
-        if (uiValue) {
-            sceneConfig.ui = uiValue;
+        if (typeof propertyMap.ui === 'string' && propertyMap.ui.length > 0) {
+            sceneConfig.ui = propertyMap.ui as string;
         }
 
-        const transitionValue = propertyMap.transition;
+        const uiPositionValue = this.parseObjectValue(propertyMap.uiPosition);
+        if (uiPositionValue && typeof uiPositionValue === 'object') {
+            const { x, y } = uiPositionValue as { x?: number; y?: number };
+            sceneConfig.uiPosition = {
+                x: typeof x === 'number' ? x : undefined,
+                y: typeof y === 'number' ? y : undefined,
+            };
+        }
+
+        const uiDataValue = this.parseObjectValue(propertyMap.uiData);
+        if (uiDataValue !== undefined) {
+            sceneConfig.uiData = uiDataValue;
+        }
+
+        if (typeof propertyMap.class === 'string' && propertyMap.class.length > 0) {
+            sceneConfig.sceneClass = propertyMap.class as string;
+        }
+
+        const transitionValue = this.parseObjectValue(propertyMap.transition);
         if (transitionValue && typeof transitionValue === 'object') {
             sceneConfig.transition = transitionValue as SceneConfig['transition'];
         }
 
         return sceneConfig;
+    }
+    private instantiateUiFromConfig(): void {
+        if (typeof this.sceneConfig.ui !== 'string' || this.sceneConfig.ui.length === 0) {
+            return;
+        }
+
+        const uiConstructor = EntityManager.get(this.sceneConfig.ui);
+        if (!uiConstructor) {
+            console.debug(`didnt find ${this.sceneConfig.ui} in Entity`);
+            console.debug(EntityManager.list);
+            return;
+        }
+
+        const uiPosition = this.sceneConfig.uiPosition ?? { x: 0, y: 0 };
+        const uiData = this.sceneConfig.uiData;
+        const instance = Reflect.construct(uiConstructor, [this, uiPosition.x ?? 0, uiPosition.y ?? 0, uiData]);
+
+        if (instance instanceof Phaser.GameObjects.GameObject) {
+            this.add.existing(instance);
+        }
     }
     private applySceneConfig(level: TiledMap): void {
         this.sceneConfig = this.parseSceneConfig(level);
@@ -144,12 +167,7 @@ export default abstract class Level extends Phaser.Scene {
             this.cameras.main.setBackgroundColor(this.sceneConfig.backgroundColor);
         }
 
-        if (Array.isArray(this.sceneConfig.ui)) {
-            this.sceneConfig.ui.forEach(({ key, text, x = 16, y = 16, style = {} }) => {
-                const element = this.add.text(x, y, text, style as Phaser.Types.GameObjects.Text.TextStyle);
-                element.setName(key);
-            });
-        }
+        this.instantiateUiFromConfig();
     }
     preload(baseUrl?: string){
         this.load.setBaseURL(baseUrl)
