@@ -1,4 +1,5 @@
 { "backgroundcolor":"#010000",
+ "class":"TestLevel",
  "compressionlevel":-1,
  "height":150,
  "infinite":false,
@@ -58,6 +59,12 @@
  "nextlayerid":16,
  "nextobjectid":28,
  "orientation":"orthogonal",
+ "properties":[
+        {
+         "name":"rt",
+         "type":"string",
+         "value":"{\"y\":10, \"x\" : 10}"
+        }],
  "renderorder":"right-up",
  "tiledversion":"1.12.0",
  "tileheight":32,

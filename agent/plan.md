@@ -143,6 +143,8 @@ Replace the prototype trigger system with a robust engine feature for map-define
 
 ## Milestone 4: implement data-driven scene and UI configuration
 
+Status: Completed
+
 ### Objective
 
 Move scene, UI, font, and transition configuration beyond hardcoded scene classes and toward map- or config-driven definitions.
@@ -168,7 +170,47 @@ Move scene, UI, font, and transition configuration beyond hardcoded scene classe
 - Fonts and text styling are managed through config or assets, not only ad hoc runtime code.
 - A trigger can move between scenes or open overlays through a standardized transition flow.
 
+## Milestone 4.5: define the map-driven UI registry contract
+
+Status: Planned
+
+### Objective
+
+Formalize the requirement that UI is declared by a map property referencing a registered scene/entity name, with optional positioning and initialization data supplied through Tiled metadata.
+
+### Work items
+
+- Define the contract for a map-level `ui` property as a registered entity name rather than an inline object array.
+- Define the expected shape of `uiPosition` and `uiData` payloads.
+- Specify how the `EntityManager` resolves and instantiates the referenced UI object.
+- Document how UI instances should be created, positioned, and initialized from Tiled metadata.
+- Decide whether UI registration should use the same object registry as gameplay entities or a dedicated UI registry.
+
+### Deliverables
+
+- A clear runtime contract for UI registration from map data.
+- A documented pattern for UI initial state and placement from Tiled properties.
+- A roadmap item ready to implement once the current engine milestones are completed.
+
+### Acceptance criteria
+
+- A map can declare UI by a single registry name instead of embedding an inline UI descriptor array.
+- UI placement and payload data are supplied through Tiled properties rather than hardcoded scene logic.
+- The engine can resolve the UI object from a registry and instantiate it consistently with other data-driven entities.
+
+#### Extra Notes
+
+- The entityManager expects objects to be a child of the `Phaser.GameObject` class, while scenes are technically gameobjects, this implementation should explictly expect a child of the `Phaser.Scene` class
+- the name of the scene to be loaded as the main scene, will be on the map properties "class" key
+- other data points should be added to custom properties and will be attached as an array of objects on the map's "properties" key
+- tiled supports data types are found at https://doc.mapeditor.org/en/stable/manual/custom-properties/#adding-properties
+- any custom properties that will be required should be documented within the readme
+- make use of namespacing when a custom property is required
+- JSON is not a type tiled can accept. but it can do a raw string
+
 ## Milestone 5: create the reusable game-object library
+
+Status: Planned
 
 ### Objective
 
@@ -186,6 +228,16 @@ Expand the project beyond the player and demo collectible into a set of engine-s
   - switches and toggles
 - Standardize common properties like `name`, `type`, `enabled`, `tags`, `script`, and `interactionTarget`.
 - Add default behaviors and extension hooks for custom objects.
+
+#### Extra notes
+
+- switches and toggles are a type of trigger zone with an associated sprite. they should share alot of logic
+- spawn points have no sprite, but will use Titled's Polygon tool. https://doc.mapeditor.org/en/stable/manual/objects/, it may require the loader and entity manager reading the data differently then the sprites. 
+- by default triggers and spawn points will be invisible to the player, but in debug mode they should be visible
+- NPC/actors are sprites with animations and physics
+- Doors and locks should show there state as text in game when debug is true.
+- pickups and collectable should despawn when collided. but this may be something left up to the consumer to implement
+- triggers may cause an effect in other entities. this will be denoted within the tiledmap using the custom property as described in: https://doc.mapeditor.org/en/stable/manual/objects/#connecting-objects. you will need to standardize what the name of that custom property will be
 
 ### Deliverables
 
@@ -283,10 +335,11 @@ Translate the functional engine into a full plugin/game-engine model with a main
 2. Formalize entity registry and object mapping
 3. Build the interaction/trigger system
 4. Add scene and UI configuration support
-5. Expand reusable object library
-6. Remove stale demo code
-7. Fix tests and validation
-8. Finalize the reusable engine/documentation plan
+5. Define the map-driven UI registry contract
+6. Expand reusable object library
+7. Remove stale demo code
+8. Fix tests and validation
+9. Finalize the reusable engine/documentation plan
 
 ## Progress tracking checklist
 
@@ -295,7 +348,9 @@ Use the milestones above as checkpoints. A practical progress pattern is:
 - [x] Milestone 1: stabilize engine foundation
 - [x] Milestone 2: formalize entity model
 - [x] Milestone 3: build trigger system
-- [ ] Milestone 4: data-driven scene and UI config
+- [x] Milestone 4: data-driven scene and UI config
+- [ ] Milestone 4.5: map-driven UI registry contract
+- [ ] Milestone 4.5: map-driven UI registry contract
 - [ ] Milestone 5: reusable object library
 - [ ] Milestone 6: cleanup stale demo code
 - [ ] Milestone 7: testing and build validation

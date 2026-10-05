@@ -6,6 +6,24 @@ import Player from '../entities/Player';
 import { EntityManager, EntityConstructor } from './EntityManager';
 import { Trigger } from './Interactables';
 
+export interface SceneConfig {
+    gravity?: { x?: number; y?: number };
+    cameraZoom?: number;
+    backgroundColor?: string;
+    ui?: Array<{
+        key: string;
+        text: string;
+        x?: number;
+        y?: number;
+        style?: Record<string, unknown>;
+    }>;
+    transition?: {
+        nextScene?: string;
+        duration?: number;
+        type?: 'fade' | 'slide';
+    };
+}
+
 export default abstract class Level extends Phaser.Scene {
     private mapName:string;
     private level: string;
@@ -20,7 +38,8 @@ export default abstract class Level extends Phaser.Scene {
     zones!: Phaser.GameObjects.Group;
     tileImages: string[];
     triggers!: Map<string, Trigger>;
-    constructor(level: string, scene_name : string,){
+    sceneConfig: SceneConfig = {};
+    constructor(level: string, scene_name : string){
         super({key:scene_name});
         this.mapName = scene_name + '_map';
         this.level = level;
@@ -36,6 +55,101 @@ export default abstract class Level extends Phaser.Scene {
     registerTrigger(trigger: Trigger): Trigger {
         this.triggers.set(trigger.name || `trigger-${trigger.id}`, trigger);
         return trigger;
+    }
+    private parseUiConfig(value: unknown): SceneConfig['ui'] {
+        if (Array.isArray(value)) {
+            return value as SceneConfig['ui'];
+        }
+
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                    return parsed as SceneConfig['ui'];
+                }
+            } catch (_error) {
+                return undefined;
+            }
+        }
+
+        return undefined;
+    }
+    private parseSceneConfig(level: TiledMap): SceneConfig {
+        const rootProperties = ((level as any).properties ?? []) as Array<{ name: string; value: unknown }>;
+        const propertyMap: Record<string, unknown> = {};
+
+        rootProperties.forEach(({ name, value }) => {
+            propertyMap[name] = value;
+        });
+
+        let gravityValue: unknown = propertyMap.gravity;
+        if (gravityValue === undefined && (propertyMap.gravityX !== undefined || propertyMap.gravityY !== undefined)) {
+            gravityValue = {
+                x: propertyMap.gravityX,
+                y: propertyMap.gravityY,
+            };
+        }
+
+        let gravity: unknown = gravityValue;
+        if (typeof gravityValue === 'string') {
+            try {
+                gravity = JSON.parse(gravityValue);
+            } catch (_error) {
+                gravity = undefined;
+            }
+        }
+
+        const sceneConfig: SceneConfig = {};
+
+        if (gravity && typeof gravity === 'object') {
+            const gravityObject = gravity as { x?: number; y?: number };
+            sceneConfig.gravity = {
+                x: typeof gravityObject.x === 'number' ? gravityObject.x : undefined,
+                y: typeof gravityObject.y === 'number' ? gravityObject.y : undefined,
+            };
+        }
+
+        if (propertyMap.cameraZoom !== undefined && typeof propertyMap.cameraZoom === 'number') {
+            sceneConfig.cameraZoom = propertyMap.cameraZoom as number;
+        }
+
+        if (propertyMap.backgroundColor !== undefined) {
+            sceneConfig.backgroundColor = String(propertyMap.backgroundColor);
+        }
+
+        const uiValue = this.parseUiConfig(propertyMap.ui);
+        if (uiValue) {
+            sceneConfig.ui = uiValue;
+        }
+
+        const transitionValue = propertyMap.transition;
+        if (transitionValue && typeof transitionValue === 'object') {
+            sceneConfig.transition = transitionValue as SceneConfig['transition'];
+        }
+
+        return sceneConfig;
+    }
+    private applySceneConfig(level: TiledMap): void {
+        this.sceneConfig = this.parseSceneConfig(level);
+
+        if (typeof this.sceneConfig.gravity?.x === 'number' && typeof this.sceneConfig.gravity?.y === 'number') {
+            this.physics.world.gravity.set(this.sceneConfig.gravity.x, this.sceneConfig.gravity.y);
+        }
+
+        if (typeof this.sceneConfig.cameraZoom === 'number') {
+            this.cameras.main.setZoom(this.sceneConfig.cameraZoom);
+        }
+
+        if (typeof this.sceneConfig.backgroundColor === 'string') {
+            this.cameras.main.setBackgroundColor(this.sceneConfig.backgroundColor);
+        }
+
+        if (Array.isArray(this.sceneConfig.ui)) {
+            this.sceneConfig.ui.forEach(({ key, text, x = 16, y = 16, style = {} }) => {
+                const element = this.add.text(x, y, text, style as Phaser.Types.GameObjects.Text.TextStyle);
+                element.setName(key);
+            });
+        }
     }
     preload(baseUrl?: string){
         this.load.setBaseURL(baseUrl)
@@ -113,6 +227,7 @@ export default abstract class Level extends Phaser.Scene {
         })
        
         const level: TiledMap = this.cache.json.get(this.levelKey)
+        this.applySceneConfig(level);
         level.layers.forEach((layer)=>{
             const {name, type } = layer
             if(type === 'objectgroup'){
