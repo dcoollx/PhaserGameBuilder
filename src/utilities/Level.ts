@@ -4,6 +4,7 @@
 import TiledMap from 'tiled-types'
 import Player from '../entities/Player';
 import { EntityManager, EntityConstructor } from './EntityManager';
+import { Trigger } from './Interactables';
 
 export default abstract class Level extends Phaser.Scene {
     private mapName:string;
@@ -18,6 +19,7 @@ export default abstract class Level extends Phaser.Scene {
     levelKey: string;
     zones!: Phaser.GameObjects.Group;
     tileImages: string[];
+    triggers!: Map<string, Trigger>;
     constructor(level: string, scene_name : string,){
         super({key:scene_name});
         this.mapName = scene_name + '_map';
@@ -26,9 +28,14 @@ export default abstract class Level extends Phaser.Scene {
         this.tileSets = [];
         this.tileImages = []
         this.collisionLayer = null;
+        this.triggers = new Map();
     }
     static registerObjects(constructors:  Array<new (...args: any[]) =>any>){
         constructors.forEach((con) => EntityManager.register(con))
+    }
+    registerTrigger(trigger: Trigger): Trigger {
+        this.triggers.set(trigger.name || `trigger-${trigger.id}`, trigger);
+        return trigger;
     }
     preload(baseUrl?: string){
         this.load.setBaseURL(baseUrl)

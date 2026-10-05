@@ -115,6 +115,8 @@ Turn the current ad hoc entity pattern into a reusable entity system that suppor
 
 ## Milestone 3: build a generic interaction and trigger system
 
+Status: Completed
+
 ### Objective
 
 Replace the prototype trigger system with a robust engine feature for map-defined interactions.
@@ -292,7 +294,7 @@ Use the milestones above as checkpoints. A practical progress pattern is:
 
 - [x] Milestone 1: stabilize engine foundation
 - [x] Milestone 2: formalize entity model
-- [ ] Milestone 3: build trigger system
+- [x] Milestone 3: build trigger system
 - [ ] Milestone 4: data-driven scene and UI config
 - [ ] Milestone 5: reusable object library
 - [ ] Milestone 6: cleanup stale demo code
