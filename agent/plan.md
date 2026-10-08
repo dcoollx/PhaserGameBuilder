@@ -208,48 +208,45 @@ Formalize the requirement that UI is declared by a map property referencing a re
 - make use of namespacing when a custom property is required
 - JSON is not a type tiled can accept. but it can do a raw string
 
-## Milestone 5: create the reusable game-object library
+## Milestone 5: map Tiled objects into reusable game objects
 
-Status: Planned
+Status: Completed
 
 ### Objective
 
-Expand the project beyond the player and demo collectible into a set of engine-supported object classes.
+Make Tiled the primary authoring interface for game objects. Every Tiled object declares its intended game-object class, and the runtime resolves that class through the entity registry rather than inferring an object type from Tiled geometry.
 
 ### Work items
 
-- Create reusable classes for common gameplay pieces:
-  - spawn points
-  - pickups/collectibles
-  - doors and locked exits
-  - hazards
-  - NPCs/actors
-  - trigger zones
-  - switches and toggles
-- Standardize common properties like `name`, `type`, `enabled`, `tags`, `script`, and `interactionTarget`.
-- Add default behaviors and extension hooks for custom objects.
+- Resolve every Tiled object through its `class` field and instantiate the matching registered Phaser game object. Do not select an instance type from Tiled shape fields or the legacy `type` field.
+- Map tile and image layers to their Phaser runtime elements. Preserve object geometry and metadata for the registered game-object class to use.
+- Provide registered built-in examples for common objects such as spawn points and doors.
+- Keep custom game-specific behavior approachable through registered constructors and the `createFromTiledObject` extension hook.
+- Standardize and document the Tiled properties required by the built-in and mapping contract, using namespaced custom property names where appropriate.
+- Add validation for unsupported or malformed Tiled geometry/object data so the mapper reports actionable diagnostics instead of silently producing an incorrect object.
 
 #### Extra notes
 
-- switches and toggles are a type of trigger zone with an associated sprite. they should share alot of logic
-- spawn points have no sprite, but will use Titled's Polygon tool. https://doc.mapeditor.org/en/stable/manual/objects/, it may require the loader and entity manager reading the data differently then the sprites. 
-- by default triggers and spawn points will be invisible to the player, but in debug mode they should be visible
-- NPC/actors are sprites with animations and physics
-- Doors and locks should show there state as text in game when debug is true.
-- pickups and collectable should despawn when collided. but this may be something left up to the consumer to implement
-- triggers may cause an effect in other entities. this will be denoted within the tiledmap using the custom property as described in: https://doc.mapeditor.org/en/stable/manual/objects/#connecting-objects. you will need to standardize what the name of that custom property will be
+- Tiled object reference: https://doc.mapeditor.org/en/stable/manual/objects/
+- Tiled object shapes include rectangles, ellipses, points, polygons, and polylines. Preserve their data, but let the registered game-object class decide how to represent it.
+- A Tiled tile object's resolved texture and frame are supplied to the registered class. Image and tile layers continue to use Phaser's corresponding display/tilemap objects.
+- Spawn points are invisible during normal play, optionally visible in debug mode, and may use polygon geometry.
+- Doors are a built-in example of a visible, configurable object. Their appearance and behavior should be driven by map data
 
 ### Deliverables
 
-- A library of implemented entity classes ready to use in levels.
-- A consistent pattern for adding brand new entity behaviors.
-- A clear separation between generic engine objects and game-specific content.
+- A documented registry-based mapping contract from Tiled objects to Phaser game objects.
+- Built-in spawn-point and door examples demonstrating the contract.
+- A straightforward way for game authors to configure map objects without depending on registry internals or creating a subclass for each map object.
+- Diagnostics and tests for representative Tiled-to-Phaser mappings.
 
 ### Acceptance criteria
 
-- New levels can reuse existing object types without bespoke scene logic.
-- Data-driven object configuration is enough to produce working gameplay behavior.
-- Object classes are suitable for reuse across multiple maps.
+- Representative tile, image, and object-layer data resolve to the registered game-object classes with relevant geometry and metadata preserved.
+- Missing or unregistered object classes produce clear errors rather than geometry-based fallback objects.
+- Spawn points and doors can be authored/configured in Tiled and used without bespoke scene setup for each map instance.
+- Common map authoring does not require consumers to  call low-level entity registry APIs.
+- Invalid or unsupported object data produces clear diagnostics.
 
 ## Milestone 6: clean up the demo layer and remove stale code
 
@@ -350,7 +347,7 @@ Use the milestones above as checkpoints. A practical progress pattern is:
 - [x] Milestone 3: build trigger system
 - [x] Milestone 4: data-driven scene and UI config
 - [x] Milestone 4.5: map-driven UI registry contract
-- [ ] Milestone 5: reusable object library
+- [x] Milestone 5: Tiled-to-Phaser object mapping and reusable components
 - [ ] Milestone 6: cleanup stale demo code
 - [ ] Milestone 7: testing and build validation
 - [ ] Milestone 8: production engine vision

@@ -1,10 +1,19 @@
 /// <reference path="../custom.d.ts"/>
 
 
-import TiledMap from 'tiled-types'
+import TiledMap, { TiledLayer, TiledLayerImagelayer, TiledLayerObjectgroup } from 'tiled-types'
 import Player from '../entities/Player';
-import { EntityManager, EntityConstructor } from './EntityManager';
+import { Spawn } from '../entities/Spawn';
+import { EntityManager } from './EntityManager';
 import { Trigger } from './Interactables';
+import { MappableTiledObject } from './TiledObjectData';
+import { TiledObjectFactory } from './TiledObjectFactory';
+
+type VisibleGameObject = Phaser.GameObjects.GameObject & {
+    alpha?: number;
+    setAlpha?: (alpha: number) => VisibleGameObject;
+    setVisible?: (visible: boolean) => VisibleGameObject;
+};
 
 export interface SceneConfig {
     gravity?: { x?: number; y?: number };
@@ -26,10 +35,10 @@ export default abstract class Level extends Phaser.Scene {
     private level: string;
     collisionLayer: Phaser.GameObjects.Group | null;
     map!:Phaser.Tilemaps.Tilemap;
+    private tiledData!: TiledMap;
     player!: Player;
     interactables!: Phaser.GameObjects.Group;
     cursors! : Phaser.Types.Input.Keyboard.CursorKeys;
-    public background!: Phaser.GameObjects.TileSprite; 
     public tileSets: Array<string>
     levelKey: string;
     zones!: Phaser.GameObjects.Group;
@@ -173,7 +182,7 @@ export default abstract class Level extends Phaser.Scene {
         this.load.setBaseURL(baseUrl)
         this.load.json(this.levelKey, this.level)
         this.load.on(`filecomplete-json-${this.levelKey}`, (_: string, _2: unknown, level: TiledMap)=>{
-             level.tilesets.forEach(({ name, image, tiles, tileheight: frameHeight, tilewidth: frameWidth, spacing, firstgid: startFrame }) =>{
+             level.tilesets.forEach(({ name, image, tiles, tileheight: frameHeight, tilewidth: frameWidth, spacing }) =>{
             if(!image){
                 tiles!.forEach((tile) =>{
                     this.load.image(tile.image!, tile.image);
@@ -182,21 +191,13 @@ export default abstract class Level extends Phaser.Scene {
                 })
 
             } else {
-            this.load.spritesheet(name, encodeURI(image), { frameWidth, frameHeight, spacing, startFrame})
+            this.load.spritesheet(name, encodeURI(image), { frameWidth, frameHeight, spacing, startFrame: 0 })
             }
             this.tileSets.push(name);
 
         })
 
-        level.layers.forEach(({name, type, ...rest })=>{
-            if(type === 'imagelayer'){
-                this.load.image(name, encodeURI((rest as any).image));
-            }
-            if(type === 'objectgroup'){
-                // we may need to load any object images later, for now they are in same as map
-                // this.load.image(name, encodeURI((rest as any).image))
-            }
-        })
+        this.loadLayerAssets(level.layers);
          this.load.tilemapTiledJSON(this.mapName,level)
          this.load.start()
         })
@@ -207,24 +208,120 @@ export default abstract class Level extends Phaser.Scene {
         this.cursors = this.input.keyboard.createCursorKeys();
        
     }
-    private addEntityFromMapObject(object: any): void {
-        const instance = EntityManager.createFromObject(this, object as any);
-
+    private loadLayerAssets(layers: TiledLayer[]): void {
+        layers.forEach((layer) => {
+            if (layer.type === 'imagelayer') {
+                this.load.image(layer.name, encodeURI(layer.image));
+            } else if (layer.type === 'group') {
+                this.loadLayerAssets(layer.layers);
+            }
+        });
+    }
+    private addEntityFromMapObject(
+        object: MappableTiledObject,
+        offsetX: number,
+        offsetY: number,
+        layerVisible: boolean,
+        layerOpacity: number,
+    ): void {
+        const positionedObject = {
+            ...object,
+            x: object.x + offsetX,
+            y: object.y + offsetY,
+        };
+        const instance = TiledObjectFactory.create(this, this.tiledData, positionedObject);
         if (!instance) {
-            const objectName = object?.type ?? object?.name ?? 'unknown';
-            console.debug(`didnt find ${objectName} in Entity`);
-            console.debug(EntityManager.list);
             return;
         }
+        const visibleInstance = instance as VisibleGameObject;
+        visibleInstance.setVisible?.(layerVisible && object.visible !== false);
+        visibleInstance.setAlpha?.((visibleInstance.alpha ?? 1) * layerOpacity);
+        if (instance instanceof Spawn && (!layerVisible || object.visible === false)) {
+            instance.setDebugVisible(false);
+        }
+        this.add.existing(instance);
 
         if (instance instanceof Phaser.GameObjects.Zone) {
             this.zones.add(instance);
-            return;
-        }
-
-        if (instance instanceof Phaser.GameObjects.GameObject) {
+        } else {
             this.interactables.add(instance);
         }
+    }
+
+    private createImageLayer(
+        layer: TiledLayerImagelayer,
+        offsetX: number,
+        offsetY: number,
+        visible: boolean,
+        opacity: number,
+    ): void {
+        const extendedLayer = layer as TiledLayerImagelayer & { repeatx?: boolean; repeaty?: boolean; parallaxx?: number; parallaxy?: number };
+        const repeats = extendedLayer.repeatx === true || extendedLayer.repeaty === true;
+        const x = offsetX + (layer.offsetx ?? 0) + layer.x * this.map.tileWidth;
+        const y = offsetY + (layer.offsety ?? 0) + layer.y * this.map.tileHeight;
+        const image = repeats
+            ? new Phaser.GameObjects.TileSprite(this, x, y, this.map.widthInPixels, this.map.heightInPixels, layer.name)
+            : new Phaser.GameObjects.Image(this, x, y, layer.name);
+
+        image.setOrigin(0, 0);
+        image.setAlpha(opacity * (typeof layer.opacity === 'number' ? layer.opacity : 1));
+        image.setVisible(visible && layer.visible !== false);
+        image.setScrollFactor(extendedLayer.parallaxx ?? 1, extendedLayer.parallaxy ?? 1);
+        this.add.existing(image);
+    }
+
+    private createMapLayers(
+        layers: TiledLayer[],
+        offsetX: number = 0,
+        offsetY: number = 0,
+        parentVisible: boolean = true,
+        parentOpacity: number = 1,
+    ): void {
+        layers.forEach((layer) => {
+            const visible = parentVisible && layer.visible !== false;
+            const opacity = parentOpacity * (typeof layer.opacity === 'number' ? layer.opacity : 1);
+            const xOffset = offsetX + (layer.offsetx ?? 0) + layer.x * this.map.tileWidth;
+            const yOffset = offsetY + (layer.offsety ?? 0) + layer.y * this.map.tileHeight;
+
+            if (layer.type === 'group') {
+                this.createMapLayers(layer.layers, xOffset, yOffset, visible, opacity);
+                return;
+            }
+
+            if (layer.type === 'imagelayer') {
+                this.createImageLayer(layer, offsetX, offsetY, parentVisible, parentOpacity);
+                return;
+            }
+
+            if (layer.type === 'objectgroup') {
+                (layer as TiledLayerObjectgroup).objects.forEach((object) => {
+                    this.addEntityFromMapObject(
+                        object as MappableTiledObject,
+                        xOffset,
+                        yOffset,
+                        visible,
+                        opacity,
+                    );
+                });
+                return;
+            }
+
+            const tileLayer = this.map.createLayer(
+                layer.name,
+                this.map.tilesets.map((tileset) => tileset.name),
+            );
+            if (!tileLayer) {
+                throw new Error(`Unable to create Tiled tile layer "${layer.name}".`);
+            }
+
+            tileLayer.setPosition(
+                xOffset,
+                yOffset,
+            );
+            tileLayer.setAlpha(opacity);
+            tileLayer.setVisible(visible);
+            this.collisionLayer!.add(tileLayer.setCollisionByProperty({ isSolid: true }));
+        });
     }
 
     create(){
@@ -237,33 +334,15 @@ export default abstract class Level extends Phaser.Scene {
             this.map.addTilesetImage(ts.name)
         })
         
-        this.map.images.forEach(( {x, y, name, repeatx, parallaxx }) => {
-            const image = this.add.tileSprite(x, y, 0,0, name)
-            image.setScrollFactor(0,  0 )
-            image.setOrigin(0);
-            this.background = image;
-        })
-       
         const level: TiledMap = this.cache.json.get(this.levelKey)
+        this.tiledData = level;
         this.applySceneConfig(level);
-        level.layers.forEach((layer)=>{
-            const {name, type } = layer
-            if(type === 'objectgroup'){
-                layer.objects.forEach((object) => this.addEntityFromMapObject(object))
-            }
-            if(type === 'tilelayer'){
-                this.collisionLayer!.add(this.map.createLayer(name, this.map.tilesets.map(l=>l.name))!.setCollisionByProperty({ isSolid: true}))
-            }
-        })
+        this.createMapLayers(level.layers as TiledLayer[]);
         this.map.setCollisionFromCollisionGroup(true, false, 'Collision')
         this.cameras.main.setBounds(0,0,this.game.scale.width * 3,this.game.scale.height);
         console.log(this.map);
     }
 
     update(time: number, delta: number): void {
-        if(this.background){
-            this.background.tilePositionX = this.cameras.main.scrollX * 0.3
-        }
-        
     }
 }

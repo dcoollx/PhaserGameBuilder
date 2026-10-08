@@ -1,6 +1,6 @@
 // all entity will register itself with this manaager
 
-import Enitity from "../entities/Entity"
+import type Enitity from "../entities/Entity"
 
 export type EntityPropertyMap = Record<string, unknown>;
 
@@ -11,12 +11,18 @@ export type EntityConstructor<T extends Enitity> = new (
 export type TiledObjectLike = {
     id?: number;
     name?: string;
+    class?: string;
     type?: string;
     x?: number;
     y?: number;
     width?: number;
     height?: number;
     properties?: Array<{ name: string; value: unknown }>;
+};
+
+export type TiledSpriteAsset = {
+    texture: string;
+    frame?: string | number;
 };
 
 export class EntityManager{
@@ -59,26 +65,43 @@ export class EntityManager{
         }, {});
     }
 
-    static createFromObject(scene: Phaser.Scene, object: TiledObjectLike) {
-        const typeName = object.type ?? object.name ?? 'Entity';
+    static createFromObject(scene: Phaser.Scene, object: TiledObjectLike, spriteAsset?: TiledSpriteAsset) {
+        const typeName = object.class?.trim() ?? '';
+        if (!typeName) {
+            throw new Error(`Tiled object ${object.id ?? '<unknown>'} must define a class.`);
+        }
         const constructor = this.get(typeName);
 
         if (!constructor) {
-            return null;
+            throw new Error(`No registered entity class "${typeName}" for Tiled object ${object.id ?? '<unknown>'}.`);
         }
 
+        const tiledConstructor = constructor as typeof constructor & {
+            createFromTiledObject?: (
+                scene: Phaser.Scene,
+                object: TiledObjectLike,
+                spriteAsset?: TiledSpriteAsset,
+            ) => unknown;
+        };
         const properties = this.propertiesFromObject(object);
-        const args: any[] = [scene, object.x ?? 0, object.y ?? 0];
+        let instance: unknown;
+        if (tiledConstructor.createFromTiledObject) {
+            instance = tiledConstructor.createFromTiledObject(scene, object, spriteAsset);
+        } else {
+            const args: any[] = [scene, object.x ?? 0, object.y ?? 0];
 
-        if (typeof object.width === 'number' || typeof object.height === 'number') {
-            args.push(object.width ?? 0, object.height ?? 0);
+            if (spriteAsset) {
+                args.push(spriteAsset.texture, spriteAsset.frame);
+            } else if (typeof object.width === 'number' || typeof object.height === 'number') {
+                args.push(object.width ?? 0, object.height ?? 0);
+            }
+
+            if (Object.keys(properties).length > 0) {
+                args.push(properties);
+            }
+
+            instance = Reflect.construct(constructor, args);
         }
-
-        if (Object.keys(properties).length > 0) {
-            args.push(properties);
-        }
-
-        const instance = Reflect.construct(constructor, args);
 
         if (instance && typeof instance === 'object') {
             Object.assign(instance, {

@@ -55,30 +55,39 @@ This keeps the UI system aligned with the rest of the data-driven entity pattern
 
 ### Object-level custom properties
 
-Tiled object entities are expected to include properties that match the runtime entity class they are meant to instantiate.
+Each Tiled object must name its intended Phaser game-object class in `class`; the registry resolves that class when creating the instance.
 
-Common expectations:
+#### Tiled layer and object mapping
 
-- `type`: the registered entity name, for example `Player`, `Star`, or `Spawn`, this is set within Tiled as `class` property
-- `name`: optional identifier used for lookup and event binding
-- custom properties on the object: any additional metadata used by entity logic, such as:
+- Tile layers become Phaser `TilemapLayer` objects.
+- Image layers become Phaser images, or repeating tile sprites when Tiled repeat is enabled. Group-layer visibility, opacity, offsets, and image-layer parallax are applied.
+- Every object in a Tiled object layer must define a `class` matching a registered game-object constructor. The selected constructor determines the Phaser object type; the engine does not infer it from Tiled shape fields or legacy `type`.
+- For tile objects (objects with a `gid`), the resolved texture and frame are passed to the registered constructor. Tiled dimensions, flips, rotation, visibility, and properties are applied to the resulting object.
+- Object geometry and properties are retained as Phaser data under `tiledObject` and `tiledProperties`.
+- Missing classes, unregistered classes, and malformed tile references fail with actionable errors.
 
-Custom properties beyond the common ones should be namespaced to avoid collisions across multiple entity types.
-  - `spawnName`
-  - `isSolid`
-  - `tags`
-  - `destinationScene`
-  - `interactionTarget`
-  - `script`
-  - `enabled`
+The built-in `Spawn` and `Door` game objects are registered with the entity registry:
 
-The engine reads object properties via `EntityManager.propertiesFromObject()` and attaches them to the instantiated entity instance as `entityProperties`.
+- `Spawn`: an invisible zone named after the Tiled object, with its polygon geometry preserved. Set the boolean custom property `engine.debugVisible` to `true` to draw its outline.
+- `Door`: a tile-backed Arcade sprite with locked/open state behavior. Read or change the door state with `gameObject.getData('door')`, `setLocked()`, `setOpen()`, and `toggleOpen()`.
+
+Other built-in properties use namespaced custom names:
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `engine.door.locked` | boolean | Initial locked state; defaults to `true`. |
+| `engine.door.open` | boolean | Initial open state; defaults to `false`. |
+| `engine.physics` | string | `static` or `dynamic` Arcade body for visible shapes and tile objects. |
+| `engine.physics.gravity` | boolean | Whether a dynamic Arcade body is affected by gravity; defaults to `true`. |
+| `engine.visual.alpha` | float | Initial object alpha from `0` to `1`. |
+| `engine.debugVisible` | boolean | Draw the outline of a `Spawn` zone. |
+
+Register each Tiled object class with the entity registry. Constructors for tile objects receive the resolved texture and frame as constructor arguments, just like a Phaser sprite; classes with nonstandard constructor contracts can provide a `createFromTiledObject` factory.
 
 ### Notes for map authors
 
 - Keep map-level settings on the map root, not in scene code.
-- Prefer using Tiled object `type` and custom properties to define entity behavior.
+- Set every Tiled object `class` to the name of its registered game-object class; legacy `type` and custom properties do not select entity classes.
 - The `ui` field should reference a registered scene/entity rather than embedding scene configuration inline.
-- If an object has no matching registered entity class, the engine logs the object type and skips instantiation.
+- If an object has an unrecognized or missing class, the engine reports an error instead of inferring a Phaser object from its geometry.
 - Any future UI, scene-transition, or game-logic settings should be represented in Tiled metadata so the runtime remains data-driven.
-

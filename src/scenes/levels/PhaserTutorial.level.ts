@@ -26,7 +26,7 @@ export class TutorialLevel extends Level{
         this.hud = this.add.text(16,16, 'score: 0', {fontSize: '32px', color: '#000'});
         this.physics.world.setBounds(0,0,this.map.widthInPixels, this.map.heightInPixels);
         this.physics.world.gravity.y = 700;
-        const spawn = this.zones.getMatching('name', 'player')[0] as Phaser.GameObjects.Zone;
+        const spawn = this.zones.getMatching('name', 'player')[0] as Spawn;
         this.player = new Player(this, spawn.x,spawn.y, this.input.keyboard!.createCursorKeys());
         this.physics.add.collider(this.player, this.collisionLayer!);
         this.physics.add.overlap(this.player, this.interactables, (player, object)=>{
@@ -34,7 +34,6 @@ export class TutorialLevel extends Level{
             (object as Star).onCollide();
         });
         Star.update();
-        Spawn.needToFix();
     }
 
     update(time: number, delta: number): void {
