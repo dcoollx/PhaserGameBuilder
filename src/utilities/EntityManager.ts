@@ -65,15 +65,20 @@ export class EntityManager{
         }, {});
     }
 
-    static createFromObject(scene: Phaser.Scene, object: TiledObjectLike, spriteAsset?: TiledSpriteAsset) {
-        const typeName = object.class?.trim() ?? '';
+    static createFromObject(
+        scene: Phaser.Scene,
+        object: TiledObjectLike,
+        spriteAsset?: TiledSpriteAsset,
+        registeredConstructor?: new (...args: any[]) => any,
+    ) {
+        const typeName = object.type?.trim() ?? '';
         if (!typeName) {
-            throw new Error(`Tiled object ${object.id ?? '<unknown>'} must define a class.`);
+            throw new Error(`Tiled object ${object.type ?? '<unknown>'} must define a class.`);
         }
-        const constructor = this.get(typeName);
+        const constructor = registeredConstructor ?? this.get(typeName);
 
         if (!constructor) {
-            throw new Error(`No registered entity class "${typeName}" for Tiled object ${object.id ?? '<unknown>'}.`);
+            throw new Error(`No registered entity class "${typeName}" for Tiled object ${object.type ?? '<unknown>'}.`);
         }
 
         const tiledConstructor = constructor as typeof constructor & {

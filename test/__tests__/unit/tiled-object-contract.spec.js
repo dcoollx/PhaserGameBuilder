@@ -1,5 +1,6 @@
 import { EntityManager } from '../../../src/utilities/EntityManager';
 import { Door } from '../../../src/entities/interactables/Doors';
+import { Spawn } from '../../../src/entities/Spawn';
 import {
   getTiledObjectClass,
   resolveTiledTileAsset,
@@ -69,6 +70,31 @@ describe('Tiled object runtime contract', () => {
       spriteAsset,
       entityType: 'TiledObjectExample',
     });
+  });
+
+  it('spawns the first object immediately and subsequent objects on the configured interval', () => {
+    const spawn = Object.create(Spawn.prototype);
+    const addEvent = jest.fn();
+    Object.assign(spawn, {
+      gameObject: class SpawnedObject {},
+      gameObjectClass: 'SpawnedObject',
+      objectId: 12,
+      count: 3,
+      timeout: 250,
+      scene: { time: { addEvent } },
+    });
+    const createObject = jest.fn();
+
+    spawn.spawnObjects(createObject);
+
+    expect(createObject).toHaveBeenCalledTimes(1);
+    expect(addEvent).toHaveBeenCalledWith(expect.objectContaining({
+      delay: 250,
+      repeat: 1,
+      callback: expect.any(Function),
+    }));
+    addEvent.mock.calls[0][0].callback();
+    expect(createObject).toHaveBeenCalledTimes(2);
   });
 
   it('resolves atlas tile IDs and Tiled flip flags into local Phaser frames', () => {

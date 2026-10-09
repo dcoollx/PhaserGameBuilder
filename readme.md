@@ -69,6 +69,7 @@ Each Tiled object must name its intended Phaser game-object class in `class`; th
 The built-in `Spawn` and `Door` game objects are registered with the entity registry:
 
 - `Spawn`: an invisible zone named after the Tiled object, with its polygon geometry preserved. Set the boolean custom property `engine.debugVisible` to `true` to draw its outline.
+- Spawn points immediately create the registered class named by `engine.spawn.class`. `engine.spawn.count` sets the number of instances (default `1`); optional `engine.spawn.timeout` sets the interval in milliseconds between the first instance and each subsequent instance.
 - `Door`: a tile-backed Arcade sprite with locked/open state behavior. Read or change the door state with `gameObject.getData('door')`, `setLocked()`, `setOpen()`, and `toggleOpen()`.
 
 Other built-in properties use namespaced custom names:
@@ -77,6 +78,9 @@ Other built-in properties use namespaced custom names:
 | --- | --- | --- |
 | `engine.door.locked` | boolean | Initial locked state; defaults to `true`. |
 | `engine.door.open` | boolean | Initial open state; defaults to `false`. |
+| `engine.spawn.class` | string | Registered game-object class spawned by a `Spawn` point. |
+| `engine.spawn.count` | integer | Number of objects spawned; defaults to `1`. |
+| `engine.spawn.timeout` | number (milliseconds) | Optional interval between spawned objects; the first instance spawns immediately. |
 | `engine.physics` | string | `static` or `dynamic` Arcade body for visible shapes and tile objects. |
 | `engine.physics.gravity` | boolean | Whether a dynamic Arcade body is affected by gravity; defaults to `true`. |
 | `engine.visual.alpha` | float | Initial object alpha from `0` to `1`. |

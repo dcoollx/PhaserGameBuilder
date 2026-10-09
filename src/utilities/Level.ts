@@ -246,6 +246,31 @@ export default abstract class Level extends Phaser.Scene {
         } else {
             this.interactables.add(instance);
         }
+        if (instance instanceof Spawn) {
+            instance.spawnObjects((spawnPoint) => this.spawnFromPoint(spawnPoint));
+        }
+    }
+
+    private spawnFromPoint(spawnPoint: Spawn): void {
+        if (!spawnPoint.gameObject) {
+            return;
+        }
+        const instance = EntityManager.createFromObject(this, {
+            ...spawnPoint.tiledObject,
+            class: spawnPoint.gameObjectClass,
+            x: spawnPoint.x,
+            y: spawnPoint.y,
+        }, undefined, spawnPoint.gameObject);
+        if (!(instance instanceof Phaser.GameObjects.GameObject)) {
+            throw new Error(`Spawn object ${spawnPoint.objectId} did not create a Phaser GameObject.`);
+        }
+
+        if (!this.children.exists(instance)) {
+            this.add.existing(instance);
+        }
+        if (instance instanceof Player) {
+            this.player = instance;
+        }
     }
 
     private createImageLayer(

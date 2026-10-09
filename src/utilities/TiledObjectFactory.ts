@@ -98,11 +98,11 @@ export class TiledObjectFactory {
     ): Phaser.GameObjects.GameObject | null {
         const className = getTiledObjectClass(object);
         if (!className) {
-            console.error(`Skipping Tiled object ${object.id}: no class is defined.`);
+            console.error(`Skipping Tiled object ${JSON.stringify(object)}: no class is defined.`);
             return null;
         }
         if (!EntityManager.get(className)) {
-            console.error(`Skipping Tiled object ${object.id}: no registered class "${className}".`);
+            console.error(`Skipping Tiled object ${object.type}: no registered class "${className}".`);
             return null;
         }
 

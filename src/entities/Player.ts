@@ -1,5 +1,6 @@
-import Level from '../utilities/Level';
+import type Level from '../utilities/Level';
 import Character from './Character';
+import { EntityRegister, TiledObjectLike } from '../utilities/EntityManager';
 //import StateMachine, {State} from './StateMachine';
 import { typestate } from 'typestate';
 
@@ -19,6 +20,7 @@ export enum Player_States {
     hang,
 }
 
+@EntityRegister
 export default class Player extends Character{
     // private MAX_SPEED:number;
     public Acceleration: number;
@@ -29,6 +31,18 @@ export default class Player extends Character{
     static Player_States = Player_States;
     scene!: Level;
     body!: Phaser.Physics.Arcade.Body;
+
+    static createFromTiledObject(scene: Phaser.Scene, object: TiledObjectLike): Player {
+        if (!scene.input.keyboard) {
+            throw new Error('Cannot spawn Player: keyboard plugin missing.');
+        }
+        return new Player(
+            scene as Level,
+            object.x ?? 0,
+            object.y ?? 0,
+            scene.input.keyboard.createCursorKeys(),
+        );
+    }
    
     constructor(scene: Level, x: number, y: number,controls: Phaser.Types.Input.Keyboard.CursorKeys, frame?: string | number){
         super(scene, x, y, 'player-idle');

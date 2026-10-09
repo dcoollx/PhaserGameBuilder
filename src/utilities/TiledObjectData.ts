@@ -14,7 +14,7 @@ export type TiledTileAssetData = {
 const GID_MASK = 0x0fffffff;
 
 export function getTiledObjectClass(object: MappableTiledObject): string {
-    return object.class?.trim() ?? '';
+    return object.type?.trim() ?? '';
 }
 
 export function resolveTiledTileAsset(
